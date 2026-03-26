@@ -1,22 +1,23 @@
 // backend/src/index.js
-// This is the entry point for the BATANA backend server
-
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 require('dotenv').config();
 
+// Database connection
+const supabase = require('./config/supabase');
+
 // Create the Express application
 const app = express();
 
-// Middleware - these run on every request
-app.use(helmet());        // Security headers
-app.use(cors());          // Allow cross-origin requests
-app.use(morgan('dev'));   // Log requests to console
-app.use(express.json());  // Parse JSON request bodies
+// Middleware
+app.use(helmet());
+app.use(cors());
+app.use(morgan('dev'));
+app.use(express.json());
 
-// Health check route - to verify the server is running
+// Health check route
 app.get('/', (req, res) => {
     res.json({
         name: 'BATANA API',
@@ -33,7 +34,7 @@ app.get('/', (req, res) => {
     });
 });
 
-// ZiG Trust Engine - basic route (we will expand this)
+// ZiG Trust Engine
 app.get('/api/trust/zig-health', (req, res) => {
     res.json({
         timestamp: new Date().toISOString(),
@@ -51,6 +52,36 @@ app.get('/api/trust/zig-health', (req, res) => {
         },
         message: 'Trust engine data will be live once APIs are connected'
     });
+});
+
+// Test database connection
+app.get('/api/test-db', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .limit(1);
+
+        if (error) {
+            return res.status(500).json({
+                status: 'error',
+                message: 'Database connection failed',
+                error: error.message
+            });
+        }
+
+        res.json({
+            status: 'success',
+            message: 'Database connected successfully!',
+            users_count: data.length,
+            note: 'BATANA is ready to serve Zimbabwe'
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: 'error',
+            message: err.message
+        });
+    }
 });
 
 // Set the port
