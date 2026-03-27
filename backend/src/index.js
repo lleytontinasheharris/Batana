@@ -5,10 +5,13 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 require('dotenv').config();
 
-// Database connection
+// Database
 const supabase = require('./config/supabase');
 
-// Create the Express application
+// Routes
+const trustRoutes = require('./routes/trustRoutes');
+
+// Create app
 const app = express();
 
 // Middleware
@@ -17,44 +20,27 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 
-// Health check route
+// Health check
 app.get('/', (req, res) => {
     res.json({
         name: 'BATANA API',
         status: 'running',
         message: 'Banking, Assurance, Trading, And Nationwide Adoption',
         version: '0.1.0',
-        pillars: [
-            'TRUST - ZiG Intelligence Engine',
-            'PROTECT - Savings and Insurance',
-            'CONNECT - Reaching Every Zimbabwean',
-            'BUILD - Financial Identity and Credit',
-            'GROW - Investments and Prosperity'
-        ]
+        endpoints: {
+            trust_engine: '/api/trust/zig-health',
+            gold_price: '/api/trust/gold-price',
+            exchange_rates: '/api/trust/exchange-rates',
+            prices: '/api/trust/prices',
+            ussd_format: '/api/trust/ussd'
+        }
     });
 });
 
-// ZiG Trust Engine
-app.get('/api/trust/zig-health', (req, res) => {
-    res.json({
-        timestamp: new Date().toISOString(),
-        zig_health: {
-            gold_backing_percentage: null,
-            official_rate: null,
-            parallel_rate: null,
-            spread_percentage: null,
-            confidence_index: null
-        },
-        purchasing_power: {
-            bread_loaves_per_zig: null,
-            last_month_bread_loaves: null,
-            direction: null
-        },
-        message: 'Trust engine data will be live once APIs are connected'
-    });
-});
+// API Routes
+app.use('/api/trust', trustRoutes);
 
-// Test database connection
+// Database test
 app.get('/api/test-db', async (req, res) => {
     try {
         const { data, error } = await supabase
@@ -72,32 +58,32 @@ app.get('/api/test-db', async (req, res) => {
 
         res.json({
             status: 'success',
-            message: 'Database connected successfully!',
-            users_count: data.length,
-            note: 'BATANA is ready to serve Zimbabwe'
+            message: 'Database connected!',
+            users_count: data.length
         });
     } catch (err) {
-        res.status(500).json({
-            status: 'error',
-            message: err.message
-        });
+        res.status(500).json({ error: err.message });
     }
 });
 
-// Set the port
+// Start server
 const PORT = process.env.PORT || 3000;
 
-// Start the server
 app.listen(PORT, () => {
     console.log('');
     console.log('========================================');
     console.log('  BATANA API Server');
-    console.log('  Banking, Assurance, Trading,');
-    console.log('  And Nationwide Adoption');
     console.log('========================================');
     console.log(`  Status:  RUNNING`);
     console.log(`  Port:    ${PORT}`);
     console.log(`  URL:     http://localhost:${PORT}`);
+    console.log('');
+    console.log('  Endpoints:');
+    console.log('  - GET  /api/trust/zig-health');
+    console.log('  - GET  /api/trust/gold-price');
+    console.log('  - GET  /api/trust/exchange-rates');
+    console.log('  - GET  /api/trust/prices');
+    console.log('  - GET  /api/trust/ussd');
     console.log('========================================');
     console.log('');
 });
