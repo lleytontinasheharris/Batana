@@ -25,7 +25,7 @@ router.get('/score/:phone', async (req, res) => {
         res.json({
             user: `${user.first_name} ${user.last_name}`,
             phone: req.params.phone,
-            Vimbiso_score: scoreResult.score,
+            vimbiso_score: scoreResult.score,
             rating: scoreResult.rating,
             max_loan_eligible: `US$${scoreResult.max_loan_amount_usd}`,
             breakdown: scoreResult.score_breakdown,
@@ -57,7 +57,7 @@ router.get('/score/id/:userId', async (req, res) => {
         res.json({
             user: `${user.first_name} ${user.last_name}`,
             phone: user.phone_number,
-            Vimbiso_score: scoreResult.score,
+            vimbiso_score: scoreResult.score,
             rating: scoreResult.rating,
             max_loan_eligible: `US$${scoreResult.max_loan_amount_usd}`,
             breakdown: scoreResult.score_breakdown,
