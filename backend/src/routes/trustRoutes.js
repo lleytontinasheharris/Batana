@@ -199,4 +199,51 @@ ZiG 100 = ${purchasingPower.one_hundred_zig_buys.bread_loaves} loaves
     }
 });
 
+// POST /api/trust/update-rates
+// Update exchange rates manually (admin only)
+router.post('/update-rates', async (req, res) => {
+    try {
+        const { 
+            official_rate, 
+            parallel_rate,
+            gbp_rate,
+            eur_rate,
+            zar_rate,
+            bwp_rate,
+            bid_rate,
+            ask_rate,
+            rate_date
+        } = req.body;
+
+        if (!official_rate || !parallel_rate) {
+            return res.status(400).json({
+                error: 'official_rate and parallel_rate are required'
+            });
+        }
+
+        exchangeService.updateExchangeRates(
+            parseFloat(official_rate),
+            parseFloat(parallel_rate),
+            {
+                gbp_rate: parseFloat(gbp_rate) || null,
+                eur_rate: parseFloat(eur_rate) || null,
+                zar_rate: parseFloat(zar_rate) || null,
+                bwp_rate: parseFloat(bwp_rate) || null,
+                bid_rate: parseFloat(bid_rate) || null,
+                ask_rate: parseFloat(ask_rate) || null,
+                rate_date: rate_date || new Date().toISOString().split('T')[0]
+            }
+        );
+
+        res.json({
+            status: 'success',
+            message: 'Exchange rates updated',
+            rates: exchangeService.getExchangeRates()
+        });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

@@ -121,6 +121,9 @@ export async function getGoldPrice() {
 export async function getPrices() {
   return publicFetch('/api/trust/prices');
 }
+export async function getExchangeRates() {
+  return publicFetch('/api/trust/exchange-rates');  
+}
 
 // ===== MUKANDO =====
 export async function getUserMukandoGroups(phone: string) {

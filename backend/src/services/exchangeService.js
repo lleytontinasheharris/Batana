@@ -7,27 +7,58 @@ const supabase = require('../config/supabase');
 // In production, this would come from RBZ or a reliable API
 // For now, we use realistic values that can be updated
 let currentRates = {
-    official_rate: 27.5,      // ZiG per USD (official RBZ rate)
-    parallel_rate: 35.0,      // ZiG per USD (street rate)
+    // RBZ Interbank rates - Updated 27 March 2026
+    official_rate: 25.3745,    // USD/ZWG AVG from RBZ
+    street_rate: 29.0,         // Observed street exchange rate (for reference only)
+    gbp_rate: 33.8484,         // GBP/ZWG AVG
+    eur_rate: 29.2810,         // EUR/ZWG AVG
+    zar_rate: 0.6726,          // ZWG/ZAR AVG
+    bwp_rate: 1.7728,          // BWP/ZWG AVG
+    bid_rate: 24.7401,         // USD/ZWG BID
+    ask_rate: 26.0089,         // USD/ZWG ASK
+    source: 'RBZ Interbank',
+    rate_date: '2026-03-27',
     last_updated: new Date().toISOString()
 };
 
 function getExchangeRates() {
-    const spread = ((currentRates.parallel_rate - currentRates.official_rate) / currentRates.official_rate) * 100;
+    const spread = ((currentRates.street_rate - currentRates.official_rate) / currentRates.official_rate) * 100;
     
     return {
+        usd_zwg: {
+            bid: currentRates.bid_rate,
+            ask: currentRates.ask_rate,
+            avg: currentRates.official_rate,
+        },
         official_rate: currentRates.official_rate,
-        parallel_rate: currentRates.parallel_rate,
+        street_rate: currentRates.street_rate,
         spread_percentage: Math.round(spread * 10) / 10,
         spread_status: spread < 10 ? 'healthy' : spread < 20 ? 'caution' : 'warning',
+        other_currencies: {
+            gbp_zwg: currentRates.gbp_rate,
+            eur_zwg: currentRates.eur_rate,
+            zwg_zar: currentRates.zar_rate,
+            bwp_zwg: currentRates.bwp_rate,
+        },
+        source: currentRates.source,
+        rate_date: currentRates.rate_date,
         last_updated: currentRates.last_updated
     };
 }
 
-function updateExchangeRates(official, parallel) {
+function updateExchangeRates(official, street, extras = {}) {
     currentRates = {
+        ...currentRates,
         official_rate: official,
-        parallel_rate: parallel,
+        street_rate: street,
+        bid_rate: extras.bid_rate || official * 0.98,
+        ask_rate: extras.ask_rate || official * 1.02,
+        gbp_rate: extras.gbp_rate || currentRates.gbp_rate,
+        eur_rate: extras.eur_rate || currentRates.eur_rate,
+        zar_rate: extras.zar_rate || currentRates.zar_rate,
+        bwp_rate: extras.bwp_rate || currentRates.bwp_rate,
+        rate_date: extras.rate_date || new Date().toISOString().split('T')[0],
+        source: 'RBZ Interbank',
         last_updated: new Date().toISOString()
     };
     return currentRates;
