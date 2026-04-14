@@ -1,20 +1,4 @@
 // ussd/src/index.js
-// BATANA USSD Gateway — Africa's Talking webhook receiver
-//
-// Africa's Talking POSTs to this endpoint every time a user
-// makes a selection on their feature phone.
-//
-// Request body (application/x-www-form-urlencoded):
-//   sessionId    — unique per USSD session (changes each dial)
-//   serviceCode  — the shortcode dialed (*227#)
-//   phoneNumber  — user's phone with country code (+263771234567)
-//   text         — cumulative input, "*"-separated ("1*2*500")
-//   networkCode  — MNO code
-//
-// Response must be plain text:
-//   CON <text>   — continue session, show menu
-//   END <text>   — terminate session
-
 require('dotenv').config();
 const express = require('express');
 const { route } = require('./menus/index');
@@ -23,23 +7,50 @@ const { normalizePhone } = require('./services/sessionManager');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Africa's Talking sends form-encoded data
+// ── Parse incoming requests ───────────────────────────────
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// ── Health check ─────────────────────────────────────────────
+// ── Allow all origins ─────────────────────────────────────
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    next();
+});
+
+// ── Log every request for debugging ──────────────────────
+app.use((req, res, next) => {
+    console.log(`[REQUEST] ${req.method} ${req.path}`);
+    console.log(`[BODY]`, JSON.stringify(req.body));
+    next();
+});
+
+// ── Health check ──────────────────────────────────────────
 app.get('/', (req, res) => {
     res.json({
         name: 'BATANA USSD Gateway',
         status: 'running',
         version: '1.0.0',
         backend: process.env.BACKEND_URL || 'http://localhost:5000',
-        shortcode: '*227#',
+        shortcode: '*384*34506#',
         note: 'POST /ussd for Africa\'s Talking webhook'
     });
 });
 
-// ── USSD Webhook ─────────────────────────────────────────────
+// ── Ping test — open in browser to confirm server works ───
+app.get('/ping', (req, res) => {
+    res.set('Content-Type', 'text/plain');
+    res.send(
+        'CON Welcome to BATANA\n' +
+        'Building Together\n' +
+        '\n' +
+        'Enter your 4-digit PIN:'
+    );
+});
+
+// ── USSD Webhook ──────────────────────────────────────────
 app.post('/ussd', async (req, res) => {
     const {
         sessionId,
@@ -49,46 +60,38 @@ app.post('/ussd', async (req, res) => {
         networkCode
     } = req.body;
 
+    console.log(`[USSD] Session: ${sessionId} | Phone: ${phoneNumber} | Text: "${text}"`);
+
     // Validate required fields
     if (!sessionId || !phoneNumber) {
         console.error('[USSD] Missing required fields:', req.body);
+        res.set('Content-Type', 'text/plain');
         return res.send('END Service error. Please try again.');
     }
 
     // Normalize phone: +263771234567 → 0771234567
     const normalizedPhone = normalizePhone(phoneNumber);
-
-    // Log incoming request
-    console.log(
-        `[USSD] ${new Date().toISOString()} | ` +
-        `Session: ${sessionId} | ` +
-        `Phone: ${normalizedPhone} | ` +
-        `Text: "${text}" | ` +
-        `Network: ${networkCode || 'unknown'}`
-    );
+    console.log(`[USSD] Normalized phone: ${normalizedPhone}`);
 
     try {
-        // Route to appropriate menu handler
         const response = await route(sessionId, normalizedPhone, text);
 
-        // Log response type (CON or END)
         const responseType = response.startsWith('CON') ? 'CON' : 'END';
-        console.log(`[USSD] Response: ${responseType} (${response.length} chars)`);
+        console.log(`[USSD] Responding with ${responseType} (${response.length} chars)`);
+        console.log(`[USSD] Response text: ${response}`);
 
-        // Africa's Talking requires plain text response
         res.set('Content-Type', 'text/plain');
         res.send(response);
 
     } catch (err) {
-        console.error('[USSD] Unhandled error:', err.message, err.stack);
-        // Always respond — never leave AT hanging
+        console.error('[USSD] Error:', err.message);
+        console.error('[USSD] Stack:', err.stack);
         res.set('Content-Type', 'text/plain');
-        res.send('END An error occurred.\nPlease try again.\nDial *227#');
+        res.send('END An error occurred.\nPlease try again.\nDial *384*34506#');
     }
 });
 
-// ── Test endpoint (development only) ─────────────────────────
-// Simulates an Africa's Talking request without needing AT credentials
+// ── Test endpoint (development only) ─────────────────────
 if (process.env.NODE_ENV !== 'production') {
     app.post('/test-ussd', async (req, res) => {
         const { phone = '0771234567', text = '', sessionId } = req.body;
@@ -96,7 +99,9 @@ if (process.env.NODE_ENV !== 'production') {
         const testSessionId = sessionId ||
             `TEST_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        const normalizedPhone = normalizePhone(phone.startsWith('+') ? phone : `+263${phone.slice(1)}`);
+        const normalizedPhone = normalizePhone(
+            phone.startsWith('+') ? phone : `+263${phone.slice(1)}`
+        );
 
         console.log(`[TEST] Phone: ${normalizedPhone} | Text: "${text}" | Session: ${testSessionId}`);
 
@@ -117,7 +122,7 @@ if (process.env.NODE_ENV !== 'production') {
     console.log('[USSD] Test endpoint active: POST /test-ussd');
 }
 
-// ── Start server ─────────────────────────────────────────────
+// ── Start server ──────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
     console.log('');
     console.log('╔══════════════════════════════════════════╗');
@@ -131,7 +136,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`║  Backend : ${(process.env.BACKEND_URL || 'http://localhost:5000').padEnd(30)}║`);
     console.log('╠══════════════════════════════════════════╣');
     console.log('║  Menus:                                  ║');
-    console.log('║  *227# → PIN → Main                      ║');
+    console.log('║  *384*34506# → PIN → Main                ║');
     console.log('║  1. Wallet  2. Mukando  3. Score         ║');
     console.log('║  4. Loans   5. Insurance                 ║');
     console.log('╚══════════════════════════════════════════╝');
