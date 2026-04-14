@@ -1,5 +1,9 @@
 // web/app/components/BatanaLogo.tsx
-export default function BatanaLogo({ size = 40 }: { size?: number }) {
+interface BatanaLogoProps {
+  size?: number;
+}
+
+export default function BatanaLogo({ size = 40 }: BatanaLogoProps) {
   return (
     <svg
       width={size}
@@ -20,12 +24,30 @@ export default function BatanaLogo({ size = 40 }: { size?: number }) {
       {/* Gold dot center */}
       <circle cx="50" cy="50" r="8" fill="#a8845a" />
       {/* Connecting lines - people connected */}
-      <line x1="50" y1="42" x2="50" y2="15" stroke="#a8845a" strokeWidth="2" opacity="0.5" />
-      <line x1="50" y1="58" x2="50" y2="85" stroke="#a8845a" strokeWidth="2" opacity="0.5" />
-      <line x1="43" y1="46" x2="20" y2="32" stroke="#a8845a" strokeWidth="2" opacity="0.5" />
-      <line x1="57" y1="54" x2="80" y2="68" stroke="#a8845a" strokeWidth="2" opacity="0.5" />
-      <line x1="57" y1="46" x2="80" y2="32" stroke="#a8845a" strokeWidth="2" opacity="0.5" />
-      <line x1="43" y1="54" x2="20" y2="68" stroke="#a8845a" strokeWidth="2" opacity="0.5" />
+      <line
+        x1="50" y1="42" x2="50" y2="15"
+        stroke="#a8845a" strokeWidth="2" opacity="0.5"
+      />
+      <line
+        x1="50" y1="58" x2="50" y2="85"
+        stroke="#a8845a" strokeWidth="2" opacity="0.5"
+      />
+      <line
+        x1="43" y1="46" x2="20" y2="32"
+        stroke="#a8845a" strokeWidth="2" opacity="0.5"
+      />
+      <line
+        x1="57" y1="54" x2="80" y2="68"
+        stroke="#a8845a" strokeWidth="2" opacity="0.5"
+      />
+      <line
+        x1="57" y1="46" x2="80" y2="32"
+        stroke="#a8845a" strokeWidth="2" opacity="0.5"
+      />
+      <line
+        x1="43" y1="54" x2="20" y2="68"
+        stroke="#a8845a" strokeWidth="2" opacity="0.5"
+      />
       {/* Small dots at connection points */}
       <circle cx="50" cy="15" r="4" fill="#a8845a" opacity="0.7" />
       <circle cx="50" cy="85" r="4" fill="#a8845a" opacity="0.7" />

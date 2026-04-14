@@ -45,7 +45,7 @@ function isValidUUID(id) {
 
 // Middleware: Validate registration input
 function validateRegistration(req, res, next) {
-    const { phone_number, pin, first_name, last_name } = req.body;
+    const { phone_number, pin, first_name, last_name, date_of_birth } = req.body;
 
     const errors = [];
 
@@ -61,12 +61,29 @@ function validateRegistration(req, res, next) {
         errors.push('PIN must be exactly 4 digits');
     }
 
-    if (first_name && first_name.length > 50) {
+    if (!first_name || first_name.length < 2) {
+        errors.push('First name is required (at least 2 characters)');
+    } else if (first_name.length > 50) {
         errors.push('First name too long (max 50 characters)');
     }
 
-    if (last_name && last_name.length > 50) {
+    if (!last_name || last_name.length < 2) {
+        errors.push('Last name is required (at least 2 characters)');
+    } else if (last_name.length > 50) {
         errors.push('Last name too long (max 50 characters)');
+    }
+
+    if (!date_of_birth) {
+        errors.push('Date of birth is required');
+    } else {
+        const dob = new Date(date_of_birth);
+        const age = new Date().getFullYear() - dob.getFullYear();
+        if (age < 18) {
+            errors.push('You must be at least 18 years old');
+        }
+        if (dob > new Date()) {
+            errors.push('Date of birth cannot be in the future');
+        }
     }
 
     if (errors.length > 0) {
@@ -75,8 +92,8 @@ function validateRegistration(req, res, next) {
 
     // Sanitize inputs
     req.body.phone_number = phone_number.replace(/[\s-]/g, '');
-    req.body.first_name = first_name ? sanitize(first_name) : null;
-    req.body.last_name = last_name ? sanitize(last_name) : null;
+    req.body.first_name = sanitize(first_name);
+    req.body.last_name = sanitize(last_name);
 
     next();
 }
@@ -125,17 +142,11 @@ function validateTransaction(req, res, next) {
 
 // Middleware: Validate transfer input
 function validateTransfer(req, res, next) {
-    const { from_phone, to_phone, amount, currency } = req.body;
+    const { to_phone, amount, currency } = req.body;
     const errors = [];
 
-    if (!from_phone || !isValidPhone(from_phone)) {
-        errors.push('Valid sender phone number is required');
-    }
     if (!to_phone || !isValidPhone(to_phone)) {
         errors.push('Valid receiver phone number is required');
-    }
-    if (from_phone === to_phone) {
-        errors.push('Cannot transfer to yourself');
     }
     if (!amount || !isValidAmount(amount)) {
         errors.push('Valid amount is required');

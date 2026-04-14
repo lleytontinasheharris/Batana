@@ -20,7 +20,7 @@ async function comparePin(pin, hash) {
 // POST /api/users/register
 router.post('/register', registrationLimiter, validateRegistration, async (req, res) => {
     try {
-        const { phone_number, first_name, last_name, pin, language } = req.body;
+        const { phone_number, first_name, last_name, pin, date_of_birth } = req.body;
 
         // Check if user already exists
         const { data: existing } = await supabase
@@ -39,14 +39,17 @@ router.post('/register', registrationLimiter, validateRegistration, async (req, 
         const pinHash = await hashPin(pin);
 
         // Create user
+        // Create user
         const { data: user, error: userError } = await supabase
             .from('users')
             .insert({
                 phone_number,
                 first_name: first_name || null,
                 last_name: last_name || null,
-                language: language || 'en',
-                pin_hash: pinHash
+                date_of_birth: date_of_birth || null,
+                pin_hash: pinHash,
+                is_verified: false,
+                verification_submitted: false
             })
             .select()
             .single();
@@ -102,7 +105,9 @@ router.post('/register', registrationLimiter, validateRegistration, async (req, 
                 phone_number: user.phone_number,
                 first_name: user.first_name,
                 last_name: user.last_name,
-                language: user.language
+                date_of_birth: user.date_of_birth,
+                is_verified: false,
+                verification_submitted: false
             },
             wallet: {
                 id: wallet.id,
@@ -186,23 +191,25 @@ router.post('/login', loginLimiter, validateLogin, async (req, res) => {
         const token = generateToken(user.id, user.phone_number);
 
         res.json({
-            status: 'success',
-            message: `Welcome back, ${user.first_name || 'user'}!`,
-            token: token,
-            user: {
-                id: user.id,
-                phone_number: user.phone_number,
-                first_name: user.first_name,
-                last_name: user.last_name,
-                language: user.language
-            },
-            wallet: wallet ? {
-                zig_balance: wallet.zig_balance,
-                usd_balance: wallet.usd_balance,
-                gold_grams: wallet.gold_grams
-            } : null,
-            vimbiso_score: score ? score.score : 0
-        });
+    status: 'success',
+    message: `Welcome back, ${user.first_name || 'user'}!`,
+    token: token,
+    user: {
+        id: user.id,
+        phone_number: user.phone_number,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        date_of_birth: user.date_of_birth,
+        is_verified: user.is_verified || false,
+        verification_submitted: user.verification_submitted || false
+    },
+    wallet: wallet ? {
+        zig_balance: wallet.zig_balance,
+        usd_balance: wallet.usd_balance,
+        gold_grams: wallet.gold_grams
+    } : null,
+    vimbiso_score: score ? score.score : 0
+});
 
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -237,26 +244,29 @@ router.get('/profile', requireAuth, async (req, res) => {
             .single();
 
         res.json({
-            user: {
-                id: user.id,
-                phone_number: user.phone_number,
-                first_name: user.first_name,
-                last_name: user.last_name,
-                province: user.province,
-                language: user.language,
-                member_since: user.created_at
-            },
-            wallet: wallet ? {
-                zig_balance: wallet.zig_balance,
-                usd_balance: wallet.usd_balance,
-                gold_grams: wallet.gold_grams
-            } : null,
-            vimbiso_score: score ? {
-                score: score.score,
-                factors: score.factors,
-                max_loan: score.max_loan_amount_usd
-            } : null
-        });
+    user: {
+        id: user.id,
+        phone_number: user.phone_number,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        province: user.province,
+        language: user.language,
+        date_of_birth: user.date_of_birth,
+        is_verified: user.is_verified || false,
+        verification_submitted: user.verification_submitted || false,
+        member_since: user.created_at
+    },
+    wallet: wallet ? {
+        zig_balance: wallet.zig_balance,
+        usd_balance: wallet.usd_balance,
+        gold_grams: wallet.gold_grams
+    } : null,
+    vimbiso_score: score ? {
+        score: score.score,
+        factors: score.factors,
+        max_loan: score.max_loan_amount_usd
+    } : null
+});
 
     } catch (err) {
         res.status(500).json({ error: err.message });
