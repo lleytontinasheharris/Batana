@@ -13,35 +13,50 @@ export default function Login() {
   const [error, setError] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!phone || !pin) {
-      setError('Phone number and PIN are required');
+  e.preventDefault();
+  if (!phone || !pin) {
+    setError('Phone number and PIN are required');
+    return;
+  }
+  if (pin.length !== 4) {
+    setError('PIN must be exactly 4 digits');
+    return;
+  }
+
+  try {
+    setLoading(true);
+    setError('');
+
+    const data = await loginUser(phone, pin);
+
+    // Save token and phone to localStorage
+    localStorage.setItem('batana_token', data.token);
+    localStorage.setItem('batana_phone', phone);
+
+    // ── Role-based redirect ──────────────────────────────
+    // The login response already contains the user's role.
+    // Redirect immediately — no need to call profile again.
+    const user = data.user;
+
+    if (user?.is_admin) {
+      window.location.href = '/admin';
       return;
     }
-    if (pin.length !== 4) {
-      setError('PIN must be exactly 4 digits');
+
+    if (user?.is_store_attendant) {
+      window.location.href = '/store';
       return;
     }
 
-    try {
-      setLoading(true);
-      setError('');
+    // Regular user
+    window.location.href = '/dashboard';
 
-      const data = await loginUser(phone, pin);
-
-      // Save token and phone to localStorage
-      localStorage.setItem('batana_token', data.token);
-      localStorage.setItem('batana_phone', phone);
-
-      // Redirect to dashboard
-      window.location.href = '/dashboard';
-
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Check your details.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err: any) {
+    setError(err.message || 'Login failed. Check your details.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div style={{
