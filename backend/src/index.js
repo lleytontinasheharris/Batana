@@ -27,9 +27,12 @@ const app = express();
 // ── Security middleware ────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://batana.vercel.app']
-    : '*',
+  origin: [
+    'http://localhost:3001',
+    'https://batana.vercel.app',
+    'https://batana-q5xmf9rtf-lleytontinashes-projects.vercel.app',
+    /\.vercel\.app$/,
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
