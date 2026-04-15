@@ -215,62 +215,87 @@ router.post('/withdraw', requireAuth, transactionLimiter, validateTransaction, a
 
 // POST /api/wallet/transfer (transfer from authenticated user to another user)
 // POST /api/wallet/transfer
+// POST /api/wallet/transfer
 router.post('/transfer', requireAuth, transactionLimiter, validateTransfer, async (req, res) => {
   try {
     const { to_phone, amount, currency, purpose, confirmed } = req.body;
     const fromUserId = req.user.userId;
 
-    // Get sender info
-    const { data: sender } = await supabase
+    // ── 1. Get sender ─────────────────────────────────────
+    const { data: sender, error: senderError } = await supabase
       .from('users')
       .select('id, first_name, phone_number')
       .eq('id', fromUserId)
       .single();
 
+    if (senderError || !sender) {
+      return res.status(404).json({ error: 'Sender account not found' });
+    }
+
     if (sender.phone_number === to_phone) {
       return res.status(400).json({ error: 'Cannot transfer to yourself' });
     }
 
-    // Get receiver
-    const { data: receiver } = await supabase
+    // ── 2. Get receiver ───────────────────────────────────
+    const { data: receiver, error: receiverError } = await supabase
       .from('users')
       .select('id, first_name')
       .eq('phone_number', to_phone)
       .single();
 
-    if (!receiver) {
-      return res.status(404).json({ error: 'Receiver not found. Check the phone number.' });
+    if (receiverError || !receiver) {
+      return res.status(404).json({ error: 'Recipient not found. Check the phone number.' });
     }
 
-    // ── TRANSACTION GUARDIAN ─────────────────────────────
-    // Run risk assessment on every transfer.
-    // If risk >= 50 and user has not confirmed, return warning.
-    // If confirmed: true in body, skip the check and execute.
+    // ── 3. Get sender wallet ──────────────────────────────
+    const { data: senderWallet, error: walletError } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', fromUserId)
+      .single();
+
+    if (walletError || !senderWallet) {
+      return res.status(404).json({ error: 'Wallet not found' });
+    }
+
+    // ── 4. Balance check — FIRST before anything else ─────
+    const balanceField   = currency === 'USD' ? 'usd_balance' : 'zig_balance';
+    const currentBalance = parseFloat(senderWallet[balanceField] || 0);
+    const transferAmount = parseFloat(amount);
+
+    if (currentBalance < transferAmount) {
+      return res.status(400).json({
+        error: `Insufficient balance. You have ${currency === 'USD' ? 'US$' : 'ZiG '}${currentBalance.toFixed(2)} available.`,
+      });
+    }
+
+    // ── 5. TRANSACTION GUARDIAN ───────────────────────────
+    // Only runs if balance is sufficient.
+    // Skip Guardian if user already confirmed (confirmed: true).
     if (!confirmed) {
       const risk = await assessTransferRisk({
         userId:   fromUserId,
         toPhone:  to_phone,
-        amount:   parseFloat(amount),
+        amount:   transferAmount,
         currency: currency || 'ZiG',
       });
 
-      console.log(`[GUARDIAN] Transfer ${currency} ${amount} to ${to_phone} — Risk: ${risk.score} (${risk.riskLevel})`);
+      console.log(`[GUARDIAN] ${currency} ${amount} to ${to_phone} — Score: ${risk.score} (${risk.riskLevel}) Safe: ${risk.safe}`);
 
       if (!risk.safe) {
-        // Return warning — do NOT execute transfer yet
         return res.status(200).json({
           status:    'requires_confirmation',
           riskLevel: risk.riskLevel,
           riskScore: risk.score,
           warnings:  risk.warnings,
           recipient: {
-            name:       risk.recipientName,
-            phone:      to_phone,
-            verified:   risk.recipientVerified,
+            name:           risk.recipientName,
+            phone:          to_phone,
+            verified:       risk.recipientVerified,
             priorTransfers: risk.priorCount,
           },
           transfer: {
-            amount,
+            amount:   transferAmount,
             currency: currency || 'ZiG',
             purpose:  purpose || 'general',
           },
@@ -278,44 +303,45 @@ router.post('/transfer', requireAuth, transactionLimiter, validateTransfer, asyn
         });
       }
     }
-    // ── END GUARDIAN ─────────────────────────────────────
+    // ── END GUARDIAN ──────────────────────────────────────
 
-    // Get sender wallet
-    const { data: senderWallet } = await supabase
-      .from('wallets')
-      .select('*')
-      .eq('user_id', fromUserId)
-      .single();
-
-    const balanceField = currency === 'USD' ? 'usd_balance' : 'zig_balance';
-    if (parseFloat(senderWallet[balanceField]) < amount) {
-      return res.status(400).json({ error: 'Insufficient balance' });
-    }
-
-    // Calculate fee
+    // ── 6. Calculate fee ──────────────────────────────────
     let fee = 0;
-    if (amount > 100) {
-      fee = amount * 0.005;
-    } else if (amount > 20) {
+    if (transferAmount > 100) {
+      fee = transferAmount * 0.005;
+    } else if (transferAmount > 20) {
       fee = 0.50;
     }
 
+    // Check balance covers amount + fee
+    if (currentBalance < transferAmount + fee) {
+      return res.status(400).json({
+        error: `Insufficient balance to cover transfer and fee. Need ${currency === 'USD' ? 'US$' : 'ZiG '}${(transferAmount + fee).toFixed(2)}, have ${currentBalance.toFixed(2)}.`,
+      });
+    }
+
+    // ── 7. Gold conversion ────────────────────────────────
     const goldPrice = await goldService.fetchGoldPrice();
     const rates     = exchangeService.getExchangeRates();
-    const usdAmount = currency === 'USD' ? amount : amount / rates.official_rate;
+    const usdAmount = currency === 'USD' ? transferAmount : transferAmount / rates.official_rate;
     const goldGrams = usdAmount / goldPrice.price_usd_per_gram;
 
-    // Deduct from sender
+    // ── 8. Deduct from sender ─────────────────────────────
     const senderUpdate = {};
-    senderUpdate[balanceField] = parseFloat(senderWallet[balanceField]) - amount - fee;
-    senderUpdate.gold_grams    = Math.max(0, parseFloat(senderWallet.gold_grams) - goldGrams);
+    senderUpdate[balanceField] = currentBalance - transferAmount - fee;
+    senderUpdate.gold_grams    = Math.max(0, parseFloat(senderWallet.gold_grams || 0) - goldGrams);
+    senderUpdate.updated_at    = new Date().toISOString();
 
-    await supabase
+    const { error: senderUpdateError } = await supabase
       .from('wallets')
       .update(senderUpdate)
       .eq('user_id', fromUserId);
 
-    // Add to receiver
+    if (senderUpdateError) {
+      return res.status(500).json({ error: 'Failed to deduct from sender wallet' });
+    }
+
+    // ── 9. Add to receiver ────────────────────────────────
     const { data: receiverWallet } = await supabase
       .from('wallets')
       .select('*')
@@ -323,52 +349,55 @@ router.post('/transfer', requireAuth, transactionLimiter, validateTransfer, asyn
       .single();
 
     const receiverUpdate = {};
-    receiverUpdate[balanceField] = parseFloat(receiverWallet[balanceField]) + amount;
-    receiverUpdate.gold_grams    = parseFloat(receiverWallet.gold_grams) + goldGrams;
+    receiverUpdate[balanceField] = parseFloat(receiverWallet[balanceField] || 0) + transferAmount;
+    receiverUpdate.gold_grams    = parseFloat(receiverWallet.gold_grams    || 0) + goldGrams;
+    receiverUpdate.updated_at    = new Date().toISOString();
 
     await supabase
       .from('wallets')
       .update(receiverUpdate)
       .eq('user_id', receiver.id);
 
-    // Record transaction
+    // ── 10. Record transaction ────────────────────────────
     await supabase
       .from('transactions')
       .insert({
-        from_user_id:        fromUserId,
-        to_user_id:          receiver.id,
-        type:                purpose ? `transfer:${purpose}` : 'transfer',
-        amount:              amount,
-        currency:            currency || 'ZiG',
+        from_user_id:          fromUserId,
+        to_user_id:            receiver.id,
+        type:                  'transfer',
+        amount:                transferAmount,
+        currency:              currency || 'ZiG',
         gold_grams_equivalent: goldGrams,
-        fee:                 fee,
-        status:              'completed',
-        description:         purpose
+        fee:                   fee,
+        status:                'completed',
+        description:           purpose
           ? `${purpose} payment to ${receiver.first_name}`
           : `Transfer to ${receiver.first_name}`,
       });
 
-    const ecocashFee = amount * 0.06;
+    // ── 11. Respond ───────────────────────────────────────
+    const ecocashFee = transferAmount * 0.06;
 
-    res.json({
+    return res.json({
       status:  'success',
-      message: `Sent ${currency || 'ZiG'} ${amount} to ${receiver.first_name}`,
+      message: `Sent ${currency || 'ZiG'} ${transferAmount} to ${receiver.first_name}`,
       transfer: {
-        amount,
+        amount:         transferAmount,
         currency:       currency || 'ZiG',
         fee,
-        total_deducted: amount + fee,
+        total_deducted: transferAmount + fee,
         purpose:        purpose || 'general',
         receiver:       receiver.first_name,
       },
       comparison: {
-        batana_fee:         fee,
+        batana_fee:           fee,
         ecocash_fee_estimate: Math.round(ecocashFee * 100) / 100,
-        you_saved:          Math.round((ecocashFee - fee) * 100) / 100,
+        you_saved:            Math.round((ecocashFee - fee) * 100) / 100,
       },
     });
 
   } catch (err) {
+    console.error('[TRANSFER] Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
