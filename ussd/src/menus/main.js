@@ -20,7 +20,7 @@ async function handle(sessionId, session, inputs) {
     if (inputs.length === 0) {
         await updateSession(sessionId, { menu: 'main', step: 0, data: {} });
         return con(
-            `BATANA — ${session.firstName}\n` +
+            `BATANA - ${session.firstName}\n` +
             '\n' +
             '1. My Wallet\n' +
             '2. Mukando\n' +
