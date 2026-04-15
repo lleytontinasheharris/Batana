@@ -184,6 +184,30 @@ function getErrorMessage(err) {
     return err.message || 'Unknown error';
 }
 
+// Check transfer risk (Guardian)
+async function checkTransferRisk(token, { to_phone, amount, currency }) {
+  return makeRequest('/api/wallet/transfer', {
+    method: 'POST',
+    token,
+    body: { to_phone, amount, currency, confirmed: false },
+  });
+}
+
+// Execute transfer
+async function transfer(token, toPhone, amount, currency, purpose, confirmed = false) {
+  return makeRequest('/api/wallet/transfer', {
+    method: 'POST',
+    token,
+    body: {
+      to_phone:  toPhone,
+      amount,
+      currency:  currency || 'ZiG',
+      purpose:   purpose  || 'ussd_transfer',
+      confirmed,
+    },
+  });
+}
+
 module.exports = {
     login,
     getWallet,

@@ -6,6 +6,7 @@ const goldService = require('../services/goldService');
 const exchangeService = require('../services/exchangeService');
 const { requireAuth, transactionLimiter } = require('../middleware/auth');
 const { validateTransaction, validateTransfer } = require('../middleware/validate');
+const { assessTransferRisk } = require('../services/fraudService');
 
 // GET /api/wallet (get authenticated user's wallet)
 router.get('/', requireAuth, async (req, res) => {
@@ -213,124 +214,163 @@ router.post('/withdraw', requireAuth, transactionLimiter, validateTransaction, a
 });
 
 // POST /api/wallet/transfer (transfer from authenticated user to another user)
+// POST /api/wallet/transfer
 router.post('/transfer', requireAuth, transactionLimiter, validateTransfer, async (req, res) => {
-    try {
-        const { to_phone, amount, currency, purpose } = req.body;
-        const fromUserId = req.user.userId;
+  try {
+    const { to_phone, amount, currency, purpose, confirmed } = req.body;
+    const fromUserId = req.user.userId;
 
-        // Get sender info
-        const { data: sender } = await supabase
-            .from('users')
-            .select('id, first_name, phone_number')
-            .eq('id', fromUserId)
-            .single();
+    // Get sender info
+    const { data: sender } = await supabase
+      .from('users')
+      .select('id, first_name, phone_number')
+      .eq('id', fromUserId)
+      .single();
 
-        if (sender.phone_number === to_phone) {
-            return res.status(400).json({ error: 'Cannot transfer to yourself' });
-        }
-
-        // Get receiver
-        const { data: receiver } = await supabase
-            .from('users')
-            .select('id, first_name')
-            .eq('phone_number', to_phone)
-            .single();
-
-        if (!receiver) {
-            return res.status(404).json({ error: 'Receiver not found' });
-        }
-
-        // Get sender wallet
-        const { data: senderWallet } = await supabase
-            .from('wallets')
-            .select('*')
-            .eq('user_id', fromUserId)
-            .single();
-
-        const balanceField = currency === 'USD' ? 'usd_balance' : 'zig_balance';
-        if (parseFloat(senderWallet[balanceField]) < amount) {
-            return res.status(400).json({ error: 'Insufficient balance' });
-        }
-
-        // Calculate fee
-        let fee = 0;
-        if (amount > 100) {
-            fee = amount * 0.005;
-        } else if (amount > 20) {
-            fee = 0.50;
-        }
-
-        const goldPrice = await goldService.fetchGoldPrice();
-        const rates = exchangeService.getExchangeRates();
-        const usdAmount = currency === 'USD' ? amount : amount / rates.official_rate;
-        const goldGrams = usdAmount / goldPrice.price_usd_per_gram;
-
-        // Deduct from sender
-        const senderUpdate = {};
-        senderUpdate[balanceField] = parseFloat(senderWallet[balanceField]) - amount - fee;
-        senderUpdate.gold_grams = Math.max(0, parseFloat(senderWallet.gold_grams) - goldGrams);
-
-        await supabase
-            .from('wallets')
-            .update(senderUpdate)
-            .eq('user_id', fromUserId);
-
-        // Add to receiver
-        const { data: receiverWallet } = await supabase
-            .from('wallets')
-            .select('*')
-            .eq('user_id', receiver.id)
-            .single();
-
-        const receiverUpdate = {};
-        receiverUpdate[balanceField] = parseFloat(receiverWallet[balanceField]) + amount;
-        receiverUpdate.gold_grams = parseFloat(receiverWallet.gold_grams) + goldGrams;
-
-        await supabase
-            .from('wallets')
-            .update(receiverUpdate)
-            .eq('user_id', receiver.id);
-
-        // Record transaction
-        await supabase
-            .from('transactions')
-            .insert({
-                from_user_id: fromUserId,
-                to_user_id: receiver.id,
-                type: purpose ? `transfer:${purpose}` : 'transfer',
-                amount: amount,
-                currency: currency || 'ZiG',
-                gold_grams_equivalent: goldGrams,
-                fee: fee,
-                status: 'completed',
-                description: purpose
-                    ? `${purpose} payment to ${receiver.first_name}`
-                    : `Transfer to ${receiver.first_name}`
-            });
-
-        const ecocashFee = amount * 0.06;
-
-        res.json({
-            status: 'success',
-            message: `Sent ${currency || 'ZiG'} ${amount} to ${receiver.first_name}`,
-            transfer: {
-                amount: amount,
-                currency: currency || 'ZiG',
-                fee: fee,
-                total_deducted: amount + fee,
-                purpose: purpose || 'general',
-                receiver: receiver.first_name
-            },
-            comparison: {
-                batana_fee: fee,
-                ecocash_fee_estimate: Math.round(ecocashFee * 100) / 100,
-                you_saved: Math.round((ecocashFee - fee) * 100) / 100
-            }
-        });
-
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    if (sender.phone_number === to_phone) {
+      return res.status(400).json({ error: 'Cannot transfer to yourself' });
     }
+
+    // Get receiver
+    const { data: receiver } = await supabase
+      .from('users')
+      .select('id, first_name')
+      .eq('phone_number', to_phone)
+      .single();
+
+    if (!receiver) {
+      return res.status(404).json({ error: 'Receiver not found. Check the phone number.' });
+    }
+
+    // ── TRANSACTION GUARDIAN ─────────────────────────────
+    // Run risk assessment on every transfer.
+    // If risk >= 50 and user has not confirmed, return warning.
+    // If confirmed: true in body, skip the check and execute.
+    if (!confirmed) {
+      const risk = await assessTransferRisk({
+        userId:   fromUserId,
+        toPhone:  to_phone,
+        amount:   parseFloat(amount),
+        currency: currency || 'ZiG',
+      });
+
+      console.log(`[GUARDIAN] Transfer ${currency} ${amount} to ${to_phone} — Risk: ${risk.score} (${risk.riskLevel})`);
+
+      if (!risk.safe) {
+        // Return warning — do NOT execute transfer yet
+        return res.status(200).json({
+          status:    'requires_confirmation',
+          riskLevel: risk.riskLevel,
+          riskScore: risk.score,
+          warnings:  risk.warnings,
+          recipient: {
+            name:       risk.recipientName,
+            phone:      to_phone,
+            verified:   risk.recipientVerified,
+            priorTransfers: risk.priorCount,
+          },
+          transfer: {
+            amount,
+            currency: currency || 'ZiG',
+            purpose:  purpose || 'general',
+          },
+          guardian_note: 'BATANA will never call you and ask you to approve a transfer.',
+        });
+      }
+    }
+    // ── END GUARDIAN ─────────────────────────────────────
+
+    // Get sender wallet
+    const { data: senderWallet } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', fromUserId)
+      .single();
+
+    const balanceField = currency === 'USD' ? 'usd_balance' : 'zig_balance';
+    if (parseFloat(senderWallet[balanceField]) < amount) {
+      return res.status(400).json({ error: 'Insufficient balance' });
+    }
+
+    // Calculate fee
+    let fee = 0;
+    if (amount > 100) {
+      fee = amount * 0.005;
+    } else if (amount > 20) {
+      fee = 0.50;
+    }
+
+    const goldPrice = await goldService.fetchGoldPrice();
+    const rates     = exchangeService.getExchangeRates();
+    const usdAmount = currency === 'USD' ? amount : amount / rates.official_rate;
+    const goldGrams = usdAmount / goldPrice.price_usd_per_gram;
+
+    // Deduct from sender
+    const senderUpdate = {};
+    senderUpdate[balanceField] = parseFloat(senderWallet[balanceField]) - amount - fee;
+    senderUpdate.gold_grams    = Math.max(0, parseFloat(senderWallet.gold_grams) - goldGrams);
+
+    await supabase
+      .from('wallets')
+      .update(senderUpdate)
+      .eq('user_id', fromUserId);
+
+    // Add to receiver
+    const { data: receiverWallet } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', receiver.id)
+      .single();
+
+    const receiverUpdate = {};
+    receiverUpdate[balanceField] = parseFloat(receiverWallet[balanceField]) + amount;
+    receiverUpdate.gold_grams    = parseFloat(receiverWallet.gold_grams) + goldGrams;
+
+    await supabase
+      .from('wallets')
+      .update(receiverUpdate)
+      .eq('user_id', receiver.id);
+
+    // Record transaction
+    await supabase
+      .from('transactions')
+      .insert({
+        from_user_id:        fromUserId,
+        to_user_id:          receiver.id,
+        type:                purpose ? `transfer:${purpose}` : 'transfer',
+        amount:              amount,
+        currency:            currency || 'ZiG',
+        gold_grams_equivalent: goldGrams,
+        fee:                 fee,
+        status:              'completed',
+        description:         purpose
+          ? `${purpose} payment to ${receiver.first_name}`
+          : `Transfer to ${receiver.first_name}`,
+      });
+
+    const ecocashFee = amount * 0.06;
+
+    res.json({
+      status:  'success',
+      message: `Sent ${currency || 'ZiG'} ${amount} to ${receiver.first_name}`,
+      transfer: {
+        amount,
+        currency:       currency || 'ZiG',
+        fee,
+        total_deducted: amount + fee,
+        purpose:        purpose || 'general',
+        receiver:       receiver.first_name,
+      },
+      comparison: {
+        batana_fee:         fee,
+        ecocash_fee_estimate: Math.round(ecocashFee * 100) / 100,
+        you_saved:          Math.round((ecocashFee - fee) * 100) / 100,
+      },
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Keep old routes for backward compatibility (but less secure)
