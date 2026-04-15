@@ -132,7 +132,6 @@ function ProfileDrawer({ user, onClose }: { user: any; onClose: () => void }) {
 
   return (
     <>
-      {/* Backdrop */}
       <div
         onClick={onClose}
         style={{
@@ -140,7 +139,6 @@ function ProfileDrawer({ user, onClose }: { user: any; onClose: () => void }) {
           zIndex: 100, backdropFilter: 'blur(4px)',
         }}
       />
-      {/* Drawer */}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0,
         width: '280px', background: '#faf8f5',
@@ -149,7 +147,6 @@ function ProfileDrawer({ user, onClose }: { user: any; onClose: () => void }) {
         display: 'flex', flexDirection: 'column', gap: '1.5rem',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}>
-        {/* Avatar + name */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', paddingTop: '1rem' }}>
           <div style={{
             width: '72px', height: '72px', borderRadius: '50%',
@@ -180,10 +177,8 @@ function ProfileDrawer({ user, onClose }: { user: any; onClose: () => void }) {
           </div>
         </div>
 
-        {/* Divider */}
         <div style={{ height: '1px', background: 'rgba(168,132,90,0.15)' }} />
 
-        {/* Info rows */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {[
             { label: 'Member since', value: user?.member_since ? new Date(user.member_since).toLocaleDateString('en-ZW', { month: 'long', year: 'numeric' }) : '—' },
@@ -201,50 +196,49 @@ function ProfileDrawer({ user, onClose }: { user: any; onClose: () => void }) {
           ))}
         </div>
 
-        {/* Admin / Store links if applicable */}
         {user?.is_admin && (
-          <button
-            onClick={() => { window.location.href = '/admin'; }}
-            style={{
-              background: 'rgba(168,132,90,0.08)', border: '1px solid rgba(168,132,90,0.2)',
-              borderRadius: '1rem', padding: '0.875rem 1rem',
-              color: '#a8845a', fontWeight: '700', fontSize: '0.875rem',
-              cursor: 'pointer', textAlign: 'left',
-            }}
-          >
+          <button onClick={() => { window.location.href = '/admin'; }} style={{ background: 'rgba(168,132,90,0.08)', border: '1px solid rgba(168,132,90,0.2)', borderRadius: '1rem', padding: '0.875rem 1rem', color: '#a8845a', fontWeight: '700', fontSize: '0.875rem', cursor: 'pointer', textAlign: 'left' }}>
             Admin Dashboard
           </button>
         )}
         {user?.is_store_attendant && (
-          <button
-            onClick={() => { window.location.href = '/store'; }}
-            style={{
-              background: 'rgba(168,132,90,0.08)', border: '1px solid rgba(168,132,90,0.2)',
-              borderRadius: '1rem', padding: '0.875rem 1rem',
-              color: '#a8845a', fontWeight: '700', fontSize: '0.875rem',
-              cursor: 'pointer', textAlign: 'left',
-            }}
-          >
+          <button onClick={() => { window.location.href = '/store'; }} style={{ background: 'rgba(168,132,90,0.08)', border: '1px solid rgba(168,132,90,0.2)', borderRadius: '1rem', padding: '0.875rem 1rem', color: '#a8845a', fontWeight: '700', fontSize: '0.875rem', cursor: 'pointer', textAlign: 'left' }}>
             Store Portal
           </button>
         )}
 
-        {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Logout */}
-        <button
-          onClick={handleLogout}
-          style={{
-            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-            borderRadius: '1rem', padding: '0.875rem 1rem',
-            color: '#ef4444', fontWeight: '700', fontSize: '0.875rem',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
-          }}
-        >
-          <LogOut size={16} />
-          Sign out
+        <button onClick={handleLogout} style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '1rem', padding: '0.875rem 1rem', color: '#ef4444', fontWeight: '700', fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <LogOut size={16} /> Sign out
         </button>
+      </div>
+    </>
+  );
+}
+
+// ── Notifications Drawer ───────────────────────────────────
+function NotificationsDrawer({ onClose }: { onClose: () => void }) {
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, backdropFilter: 'blur(4px)' }} />
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: '280px', background: '#faf8f5',
+        zIndex: 101, padding: '2rem 1.5rem',
+        boxShadow: '-8px 0 32px rgba(0,0,0,0.15)',
+        display: 'flex', flexDirection: 'column', gap: '1.25rem',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '1rem', fontWeight: '800', color: '#1c1917' }}>Notifications</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#78716c', fontSize: '1.25rem', lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ height: '1px', background: 'rgba(168,132,90,0.15)' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '0.75rem', color: '#a8a29e' }}>
+          <Bell size={32} color="#d4c0a3" />
+          <p style={{ fontSize: '0.875rem', textAlign: 'center', margin: 0 }}>No new notifications</p>
+        </div>
       </div>
     </>
   );
@@ -252,14 +246,15 @@ function ProfileDrawer({ user, onClose }: { user: any; onClose: () => void }) {
 
 // ══════════════════════════════════════════════════════════
 export default function Dashboard() {
-  const [loading, setLoading]               = useState(true);
-  const [error, setError]                   = useState<string | null>(null);
-  const [profile, setProfile]               = useState<any>(null);
-  const [wallet, setWallet]                 = useState<any>(null);
-  const [mukandoGroups, setMukandoGroups]   = useState<any[]>([]);
-  const [vimbisoScore, setVimbisoScore]     = useState<any>(null);
-  const [zigHealth, setZigHealth]           = useState<any>(null);
-  const [showProfile, setShowProfile]       = useState(false);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
+  const [profile, setProfile]             = useState<any>(null);
+  const [wallet, setWallet]               = useState<any>(null);
+  const [mukandoGroups, setMukandoGroups] = useState<any[]>([]);
+  const [vimbisoScore, setVimbisoScore]   = useState<any>(null);
+  const [zigHealth, setZigHealth]         = useState<any>(null);
+  const [showProfile, setShowProfile]     = useState(false);
+  const [showNotifs, setShowNotifs]       = useState(false);
 
   function getToken() {
     if (typeof window !== 'undefined') return localStorage.getItem('batana_token');
@@ -289,17 +284,9 @@ export default function Dashboard() {
       setVimbisoScore(scoreData);
       setZigHealth(zigData);
 
-      // ── Role-based redirect ──────────────────────────
       const userData = profileData?.user || profileData;
-
-      if (userData?.is_admin) {
-        window.location.href = '/admin';
-        return;
-      }
-      if (userData?.is_store_attendant) {
-        window.location.href = '/store';
-        return;
-      }
+      if (userData?.is_admin) { window.location.href = '/admin'; return; }
+      if (userData?.is_store_attendant) { window.location.href = '/store'; return; }
 
       if (phone) {
         try {
@@ -324,13 +311,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh', background: 'linear-gradient(160deg, #faf8f5 0%, #f2ede4 100%)',
-        maxWidth: '480px', margin: '0 auto',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexDirection: 'column', gap: '1rem',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #faf8f5 0%, #f2ede4 100%)', maxWidth: '480px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
         <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
         <BatanaLogo size={48} />
         <Loader size={24} color="#a8845a" style={{ animation: 'spin 1s linear infinite' }} />
@@ -341,22 +322,11 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <div style={{
-        minHeight: '100vh', background: 'linear-gradient(160deg, #faf8f5 0%, #f2ede4 100%)',
-        maxWidth: '480px', margin: '0 auto',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexDirection: 'column', gap: '1rem',
-        padding: '2rem', textAlign: 'center',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #faf8f5 0%, #f2ede4 100%)', maxWidth: '480px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem', padding: '2rem', textAlign: 'center', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
         <AlertCircle size={48} color="#a8845a" />
         <h2 style={{ color: '#1c1917', fontWeight: '700' }}>Something went wrong</h2>
         <p style={{ color: '#78716c', fontSize: '0.875rem' }}>{error}</p>
-        <button onClick={loadDashboardData} style={{
-          background: 'linear-gradient(135deg, #a8845a, #967554)',
-          color: 'white', padding: '0.75rem 2rem',
-          borderRadius: '1rem', border: 'none', fontWeight: '600', cursor: 'pointer',
-        }}>Try Again</button>
+        <button onClick={loadDashboardData} style={{ background: 'linear-gradient(135deg, #a8845a, #967554)', color: 'white', padding: '0.75rem 2rem', borderRadius: '1rem', border: 'none', fontWeight: '600', cursor: 'pointer' }}>Try Again</button>
       </div>
     );
   }
@@ -385,18 +355,14 @@ export default function Dashboard() {
   ];
 
   return (
-    <div style={{
-      minHeight: '100vh', background: 'linear-gradient(160deg, #faf8f5 0%, #f2ede4 100%)',
-      maxWidth: '480px', margin: '0 auto', position: 'relative',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-    }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #faf8f5 0%, #f2ede4 100%)', maxWidth: '480px', margin: '0 auto', position: 'relative', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <style>{`
         @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
 
-      {/* Profile drawer */}
       {showProfile && <ProfileDrawer user={user} onClose={() => setShowProfile(false)} />}
+      {showNotifs  && <NotificationsDrawer onClose={() => setShowNotifs(false)} />}
 
       {/* ── TOP BAR ── */}
       <header style={{
@@ -413,10 +379,10 @@ export default function Dashboard() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          {/* Bell — shows notification dot, opens drawer in future */}
+          {/* Bell — opens notifications drawer */}
           <button
-            onClick={() => setShowProfile(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#78716c', position: 'relative' }}
+            onClick={() => setShowNotifs(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: '#78716c' }}
           >
             <Bell size={20} />
           </button>
@@ -453,13 +419,7 @@ export default function Dashboard() {
           <h1 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#1c1917', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             {user?.first_name} {user?.last_name}
             {user?.is_verified && (
-              <span style={{
-                fontSize: '0.68rem', fontWeight: '700',
-                background: 'rgba(116,140,61,0.12)', color: '#748c3d',
-                padding: '0.2rem 0.6rem', borderRadius: '2rem',
-                letterSpacing: '0.04em', textTransform: 'uppercase',
-                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-              }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: '700', background: 'rgba(116,140,61,0.12)', color: '#748c3d', padding: '0.2rem 0.6rem', borderRadius: '2rem', letterSpacing: '0.04em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                 <Shield size={9} color="#748c3d" /> Verified
               </span>
             )}
@@ -470,13 +430,7 @@ export default function Dashboard() {
         {!user?.is_verified && (
           <button
             onClick={() => { window.location.href = '/verify'; }}
-            style={{
-              width: '100%', background: 'linear-gradient(135deg, #1c1917, #3a2a1c)',
-              borderRadius: '1.25rem', padding: '1.125rem 1.25rem',
-              marginBottom: '1.25rem', border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left',
-              boxShadow: '0 4px 16px rgba(58,42,28,0.2)',
-            }}
+            style={{ width: '100%', background: 'linear-gradient(135deg, #1c1917, #3a2a1c)', borderRadius: '1.25rem', padding: '1.125rem 1.25rem', marginBottom: '1.25rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left', boxShadow: '0 4px 16px rgba(58,42,28,0.2)' }}
           >
             <div style={{ width: '40px', height: '40px', borderRadius: '0.875rem', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <Shield size={20} color="#f59e0b" />
@@ -494,12 +448,7 @@ export default function Dashboard() {
         )}
 
         {/* ── WALLET CARD ── */}
-        <div style={{
-          background: 'linear-gradient(135deg, #3a2a1c 0%, #6f5336 60%, #8a6840 100%)',
-          borderRadius: '1.75rem', padding: '1.75rem',
-          marginBottom: '1rem', position: 'relative', overflow: 'hidden',
-          boxShadow: '0 16px 40px rgba(58,42,28,0.35)',
-        }}>
+        <div style={{ background: 'linear-gradient(135deg, #3a2a1c 0%, #6f5336 60%, #8a6840 100%)', borderRadius: '1.75rem', padding: '1.75rem', marginBottom: '1rem', position: 'relative', overflow: 'hidden', boxShadow: '0 16px 40px rgba(58,42,28,0.35)' }}>
           <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', background: 'radial-gradient(circle, rgba(212,175,55,0.25), transparent)', borderRadius: '50%' }} />
           <div style={{ position: 'absolute', bottom: '-40px', left: '-20px', width: '160px', height: '160px', background: 'radial-gradient(circle, rgba(245,158,11,0.12), transparent)', borderRadius: '50%' }} />
 
@@ -537,12 +486,7 @@ export default function Dashboard() {
               ].map((action) => {
                 const Icon = action.icon;
                 return (
-                  <button key={action.label} onClick={() => { window.location.href = action.href; }} style={{
-                    background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
-                    borderRadius: '0.875rem', padding: '0.75rem', color: 'white',
-                    fontSize: '0.72rem', fontWeight: '600', cursor: 'pointer',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.375rem',
-                  }}>
+                  <button key={action.label} onClick={() => { window.location.href = action.href; }} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '0.875rem', padding: '0.75rem', color: 'white', fontSize: '0.72rem', fontWeight: '600', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.375rem' }}>
                     <Icon size={18} /> {action.label}
                   </button>
                 );
@@ -584,33 +528,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div style={{ background: 'rgba(168,132,90,0.05)', borderRadius: '1rem', padding: '1rem', border: '1px solid rgba(168,132,90,0.1)', marginBottom: '0.875rem' }}>
-            <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#57534e', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Purchasing Power — ZiG vs Unprotected Cash
-            </div>
-            <div style={{ marginBottom: '0.625rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: '0.3rem' }}>
-                <span style={{ color: '#748c3d', fontWeight: '700' }}>Your ZiG (gold-backed)</span>
-                <span style={{ color: '#748c3d', fontWeight: '800' }}>100%</span>
-              </div>
-              <div style={{ height: '10px', background: 'rgba(116,140,61,0.12)', borderRadius: '5px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: '100%', background: 'linear-gradient(to right, #748c3d, #9ab55a)', borderRadius: '5px' }} />
-              </div>
-            </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: '0.3rem' }}>
-                <span style={{ color: '#ea580c', fontWeight: '700' }}>Unprotected cash (est.)</span>
-                <span style={{ color: '#ea580c', fontWeight: '800' }}>~97%</span>
-              </div>
-              <div style={{ height: '10px', background: 'rgba(234,88,12,0.1)', borderRadius: '5px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: '97%', background: 'linear-gradient(to right, #ea580c, #fb923c)', borderRadius: '5px' }} />
-              </div>
-            </div>
-            <div style={{ fontSize: '0.7rem', color: '#78716c', marginTop: '0.75rem', lineHeight: '1.5' }}>
-              Gold-backed ZiG preserves your purchasing power. Unprotected cash loses value each month to inflation.
-            </div>
-          </div>
-
           <div style={{ background: 'rgba(58,42,28,0.04)', borderRadius: '1rem', padding: '0.875rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#57534e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ZiG Rate Trend</span>
@@ -629,11 +546,7 @@ export default function Dashboard() {
         {/* ── QUICK LINKS ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.625rem', marginBottom: '1rem' }}>
           {quickLinks.map((item) => (
-            <button key={item.label} onClick={() => { window.location.href = item.href; }} style={{
-              background: 'rgba(255,255,255,0.85)', border: '1px solid rgba(168,132,90,0.15)',
-              borderRadius: '1rem', padding: '0.875rem 0.5rem', cursor: 'pointer',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.375rem',
-            }}>
+            <button key={item.label} onClick={() => { window.location.href = item.href; }} style={{ background: 'rgba(255,255,255,0.85)', border: '1px solid rgba(168,132,90,0.15)', borderRadius: '1rem', padding: '0.875rem 0.5rem', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.375rem' }}>
               {item.icon}
               <span style={{ fontSize: '0.68rem', fontWeight: '600', color: '#57534e' }}>{item.label}</span>
             </button>

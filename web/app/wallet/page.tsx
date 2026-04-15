@@ -84,25 +84,25 @@ export default function WalletPage() {
   const [purpose, setPurpose]   = useState('');
 
   const loadWallet = useCallback(async () => {
-    const token = getToken();
-    if (!token) { window.location.href = '/login'; return; }
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getWallet(token);
-      setWalletData(data.wallet);
-      setGoldPrice(data.gold_price);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load wallet';
-      if (message.includes('token') || message.includes('expired')) {
-        window.location.href = '/login';
-      } else {
-        setError(message);
-      }
-    } finally {
-      setLoading(false);
+  const token = getToken();
+  if (!token) { window.location.href = '/login'; return; }
+  try {
+    setLoading(true);
+    setError(null);
+    const data = await getWallet(token);
+    setWalletData(data.wallet);   // ← must be data.wallet not data
+    setGoldPrice(data.gold_price);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to load wallet';
+    if (message.includes('token') || message.includes('expired')) {
+      window.location.href = '/login';
+    } else {
+      setError(message);
     }
-  }, []);
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => { loadWallet(); }, [loadWallet]);
 
@@ -162,101 +162,103 @@ export default function WalletPage() {
 
   // ── SEND — runs Guardian check ────────────────────────────
   async function handleTransfer(confirmed = false) {
-    const token = getToken();
-    if (!token) return;
-    const amt = parseFloat(amount);
-    if (!amt || amt <= 0) { setError('Enter a valid amount'); return; }
-    if (!toPhone || toPhone.length < 10) { setError('Enter a valid phone number'); return; }
-    if (toPhone === getPhone()) { setError('You cannot transfer to yourself'); return; }
+  const token = getToken();
+  if (!token) return;
 
-    try {
-      setActionLoading(true);
-      setError(null);
+  const amt = parseFloat(amount);
+  if (!amt || amt <= 0) { setError('Enter a valid amount'); return; }
+  if (!toPhone || toPhone.length < 10) { setError('Enter a valid phone number'); return; }
+  if (toPhone === getPhone()) { setError('You cannot transfer to yourself'); return; }
 
-      const response = await fetch(`${API_URL}/api/wallet/transfer`, {
-        method:  'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          to_phone:  toPhone,
-          amount:    amt,
-          currency,
-          purpose:   purpose || undefined,
-          confirmed,
-        }),
-      });
+  try {
+    setActionLoading(true);
+    setError(null);
 
-      const data = await response.json();
+    const response = await fetch(`${API_URL}/api/wallet/transfer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        to_phone:  toPhone,
+        amount:    amt,
+        currency,
+        purpose:   purpose || undefined,
+        confirmed, // ← this is the critical field
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Transfer failed');
-      }
+    const data = await response.json();
 
-      // ── Guardian intercept ────────────────────────────
-      if (data.status === 'requires_confirmation') {
-        setGuardianData({
-          riskLevel:  data.riskLevel,
-          riskScore:  data.riskScore,
-          warnings:   data.warnings,
-          recipient:  data.recipient,
-          transfer:   data.transfer,
-        });
-        setPendingTransfer({ toPhone, amount: amt, currency, purpose });
-        setView('guardian');
-        return;
-      }
-
-      // ── Success ───────────────────────────────────────
-      setSuccess(data);
-      await loadWallet();
-
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Transfer failed');
-    } finally {
-      setActionLoading(false);
+    if (!response.ok) {
+      throw new Error(data.error || 'Transfer failed');
     }
+
+    // ── Guardian intercept ──────────────────────────────
+    if (data.status === 'requires_confirmation') {
+      setGuardianData({
+        riskLevel:  data.riskLevel,
+        riskScore:  data.riskScore,
+        warnings:   data.warnings,
+        recipient:  data.recipient,
+        transfer:   data.transfer,
+      });
+      setPendingTransfer({ toPhone, amount: amt, currency, purpose });
+      setView('guardian');
+      return;
+    }
+
+    // ── Success ─────────────────────────────────────────
+    setSuccess(data);
+    await loadWallet();
+
+  } catch (err: unknown) {
+    setError(err instanceof Error ? err.message : 'Transfer failed');
+  } finally {
+    setActionLoading(false);
   }
+}
 
   // ── GUARDIAN: user clicks "Send anyway" ──────────────────
   async function handleGuardianConfirm() {
-    const token = getToken();
-    if (!token || !pendingTransfer) return;
-    try {
-      setActionLoading(true);
-      setError('');
+  const token = getToken();
+  if (!token || !pendingTransfer) return;
 
-      const response = await fetch(`${API_URL}/api/wallet/transfer`, {
-        method:  'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          to_phone:  pendingTransfer.toPhone,
-          amount:    pendingTransfer.amount,
-          currency:  pendingTransfer.currency,
-          purpose:   pendingTransfer.purpose || undefined,
-          confirmed: true,
-        }),
-      });
+  try {
+    setActionLoading(true);
+    setError(null);
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Transfer failed');
+    const response = await fetch(`${API_URL}/api/wallet/transfer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        to_phone:  pendingTransfer.toPhone,
+        amount:    pendingTransfer.amount,
+        currency:  pendingTransfer.currency,
+        purpose:   pendingTransfer.purpose || undefined,
+        confirmed: true,
+      }),
+    });
 
-      setGuardianData(null);
-      setPendingTransfer(null);
-      setSuccess(data);
-      await loadWallet();
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Transfer failed');
 
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Transfer failed');
-      setView('transfer');
-    } finally {
-      setActionLoading(false);
-    }
+    setGuardianData(null);
+    setPendingTransfer(null);
+    setSuccess(data);
+    await loadWallet();
+
+  } catch (err: unknown) {
+    setError(err instanceof Error ? err.message : 'Transfer failed');
+    setView('transfer');
+  } finally {
+    setActionLoading(false);
   }
+}
 
   // ── LOADING ───────────────────────────────────────────────
   if (loading) {
