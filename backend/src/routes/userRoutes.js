@@ -201,7 +201,9 @@ router.post('/login', loginLimiter, validateLogin, async (req, res) => {
         last_name: user.last_name,
         date_of_birth: user.date_of_birth,
         is_verified: user.is_verified || false,
-        verification_submitted: user.verification_submitted || false
+        verification_submitted: user.verification_submitted || false,
+        is_store_attendant: user.is_store_attendant || false,
+        is_admin: user.is_admin || false,
     },
     wallet: wallet ? {
         zig_balance: wallet.zig_balance,
@@ -254,6 +256,8 @@ router.get('/profile', requireAuth, async (req, res) => {
         date_of_birth: user.date_of_birth,
         is_verified: user.is_verified || false,
         verification_submitted: user.verification_submitted || false,
+        is_store_attendant: user.is_store_attendant || false,
+        is_admin: user.is_admin || false,
         member_since: user.created_at
     },
     wallet: wallet ? {
